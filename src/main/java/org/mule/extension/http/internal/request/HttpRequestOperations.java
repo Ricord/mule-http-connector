@@ -7,7 +7,6 @@
 package org.mule.extension.http.internal.request;
 
 import static java.lang.Integer.MAX_VALUE;
-import static java.lang.String.format;
 import static org.mule.extension.http.internal.HttpConnectorConstants.CONNECTOR_OVERRIDES;
 import static org.mule.extension.http.internal.HttpConnectorConstants.REQUEST;
 import static org.mule.extension.http.internal.HttpConnectorConstants.RESPONSE;
@@ -20,13 +19,13 @@ import org.mule.extension.http.api.request.validator.ResponseValidator;
 import org.mule.extension.http.api.request.validator.SuccessStatusCodeValidator;
 import org.mule.extension.http.internal.HttpMetadataResolver;
 import org.mule.extension.http.internal.request.client.HttpExtensionClient;
+import org.mule.runtime.api.exception.DefaultMuleException;
 import org.mule.runtime.api.lifecycle.Disposable;
 import org.mule.runtime.api.lifecycle.Initialisable;
 import org.mule.runtime.api.lifecycle.InitialisationException;
 import org.mule.runtime.api.scheduler.Scheduler;
-import org.mule.runtime.api.exception.DefaultMuleException;
-import org.mule.runtime.core.api.MuleContext;
 import org.mule.runtime.api.scheduler.SchedulerService;
+import org.mule.runtime.core.api.MuleContext;
 import org.mule.runtime.extension.api.annotation.Streaming;
 import org.mule.runtime.extension.api.annotation.error.Throws;
 import org.mule.runtime.extension.api.annotation.metadata.OutputResolver;
@@ -37,6 +36,7 @@ import org.mule.runtime.extension.api.annotation.param.Optional;
 import org.mule.runtime.extension.api.annotation.param.ParameterGroup;
 import org.mule.runtime.extension.api.annotation.param.display.Placement;
 import org.mule.runtime.extension.api.annotation.param.display.Summary;
+import org.mule.runtime.extension.api.notification.NotificationHandler;
 import org.mule.runtime.extension.api.runtime.operation.Result;
 import org.mule.runtime.extension.api.runtime.process.CompletionCallback;
 import org.mule.runtime.http.api.HttpConstants;
@@ -79,7 +79,7 @@ public class HttpRequestOperations implements Initialisable, Disposable {
                       @Placement(order = 3) @ParameterGroup(name = REQUEST) HttpRequesterRequestBuilder requestBuilder,
                       @ParameterGroup(name = RESPONSE) ResponseValidationSettings responseValidationSettings,
                       @Connection HttpExtensionClient client,
-                      @Config HttpRequesterConfig config,
+                      @Config HttpRequesterConfig config, NotificationHandler notificationHandler,
                       CompletionCallback<InputStream, HttpResponseAttributes> callback) {
     try {
       HttpRequesterRequestBuilder resolvedBuilder = requestBuilder != null ? requestBuilder : new HttpRequesterRequestBuilder();
@@ -110,7 +110,9 @@ public class HttpRequestOperations implements Initialisable, Disposable {
               .setAuthentication(client.getDefaultAuthentication())
               .setResponseTimeout(resolvedTimeout)
               .setResponseValidator(responseValidator)
-              .setTransformationService(muleContext.getTransformationService()).setScheduler(scheduler)
+              .setTransformationService(muleContext.getTransformationService())
+              .setScheduler(scheduler)
+              .setNotificationHandler(notificationHandler)
               .build();
 
       requester.doRequest(client, resolvedBuilder, true, muleContext, callback);
