@@ -10,9 +10,9 @@ import static java.lang.Integer.getInteger;
 import static org.apache.commons.lang3.StringUtils.containsIgnoreCase;
 import static org.mule.extension.http.api.error.HttpError.CONNECTIVITY;
 import static org.mule.extension.http.api.error.HttpError.TIMEOUT;
+import static org.mule.extension.http.api.notification.HttpNotificationInfo.HttpNotificationAction.REQUEST_COMPLETE;
+import static org.mule.extension.http.api.notification.HttpNotificationInfo.HttpNotificationAction.REQUEST_START;
 import static org.mule.extension.http.internal.HttpConnectorConstants.IDEMPOTENT_METHODS;
-import static org.mule.extension.http.internal.request.HttpNotificationInfo.HTTP_REQUEST_COMPLETE;
-import static org.mule.extension.http.internal.request.HttpNotificationInfo.HTTP_REQUEST_START;
 import static org.mule.runtime.api.i18n.I18nMessageFactory.createStaticMessage;
 import static org.mule.runtime.core.api.config.MuleProperties.SYSTEM_PROPERTY_PREFIX;
 import static org.mule.runtime.http.api.HttpConstants.Protocol.HTTPS;
@@ -21,6 +21,9 @@ import org.mule.extension.http.api.HttpResponseAttributes;
 import org.mule.extension.http.api.error.HttpError;
 import org.mule.extension.http.api.error.HttpErrorMessageGenerator;
 import org.mule.extension.http.api.error.HttpRequestFailedException;
+import org.mule.extension.http.api.notification.HttpNotificationInfo;
+import org.mule.extension.http.api.notification.HttpRequestData;
+import org.mule.extension.http.api.notification.HttpResponseData;
 import org.mule.extension.http.api.request.authentication.HttpRequestAuthentication;
 import org.mule.extension.http.api.request.authentication.UsernamePasswordAuthentication;
 import org.mule.extension.http.api.request.builder.HttpRequesterRequestBuilder;
@@ -34,7 +37,7 @@ import org.mule.runtime.api.scheduler.Scheduler;
 import org.mule.runtime.api.transformation.TransformationService;
 import org.mule.runtime.core.api.MuleContext;
 import org.mule.runtime.core.api.util.IOUtils;
-import org.mule.runtime.extension.api.notification.NotificationHandler;
+import org.mule.runtime.extension.api.notification.NotificationEmitter;
 import org.mule.runtime.extension.api.runtime.operation.Result;
 import org.mule.runtime.extension.api.runtime.process.CompletionCallback;
 import org.mule.runtime.http.api.client.auth.HttpAuthentication;
@@ -42,7 +45,6 @@ import org.mule.runtime.http.api.domain.message.request.HttpRequest;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
 import java.util.concurrent.TimeoutException;
 
 import org.slf4j.Logger;
@@ -66,7 +68,7 @@ public class HttpRequester {
   private final ResponseValidator responseValidator;
 
   private final HttpRequesterConfig config;
-  private final NotificationHandler notificationHandler;
+  private final NotificationEmitter notificationEmitter;
   private final HttpRequestFactory eventToHttpRequest;
   private final Scheduler scheduler;
   private final int retryAttempts;
@@ -75,7 +77,7 @@ public class HttpRequester {
 
   public HttpRequester(HttpRequestFactory eventToHttpRequest, boolean followRedirects, HttpRequestAuthentication authentication,
                        int responseTimeout, ResponseValidator responseValidator, HttpRequesterConfig config,
-                       Scheduler scheduler, NotificationHandler notificationHandler) {
+                       Scheduler scheduler, NotificationEmitter notificationEmitter) {
     this.followRedirects = followRedirects;
     this.authentication = authentication;
     this.responseTimeout = responseTimeout;
@@ -83,7 +85,7 @@ public class HttpRequester {
     this.config = config;
     this.scheduler = scheduler;
     this.eventToHttpRequest = eventToHttpRequest;
-    this.notificationHandler = notificationHandler;
+    this.notificationEmitter = notificationEmitter;
     retryAttempts = getInteger(RETRY_ATTEMPTS_PROPERTY, DEFAULT_RETRY_ATTEMPTS);
   }
 
@@ -98,15 +100,14 @@ public class HttpRequester {
                                   boolean checkRetry, MuleContext muleContext,
                                   CompletionCallback<InputStream, HttpResponseAttributes> callback, HttpRequest httpRequest,
                                   int retryCount) {
-    URI uri = httpRequest.getUri();
-    notificationHandler.fireWith(new HttpNotificationInfo(uri, HTTP_REQUEST_START));
+    notificationEmitter.fire(new HttpNotificationInfo(HttpRequestData.from(httpRequest), REQUEST_START));
     client.send(httpRequest, responseTimeout, followRedirects, resolveAuthentication(authentication))
         .whenComplete(
                       (response, exception) -> {
                         if (response != null) {
-                          notificationHandler.fireWith(new HttpNotificationInfo(uri, HTTP_REQUEST_COMPLETE));
+                          notificationEmitter.fire(new HttpNotificationInfo(HttpResponseData.from(response), REQUEST_COMPLETE));
                           HttpResponseToResult httpResponseToResult = new HttpResponseToResult(config, muleContext);
-                          from(httpResponseToResult.convert(response, uri))
+                          from(httpResponseToResult.convert(response, httpRequest.getUri()))
                               .doOnNext(result -> {
                                 try {
                                   if (resendRequest(result, checkRetry, authentication)) {
@@ -200,7 +201,7 @@ public class HttpRequester {
     private HttpRequesterConfig config;
     private TransformationService transformationService;
     private Scheduler scheduler;
-    private NotificationHandler notificationHandler;
+    private NotificationEmitter notificationEmitter;
 
     public Builder setUri(String uri) {
       this.uri = uri;
@@ -257,8 +258,8 @@ public class HttpRequester {
       return this;
     }
 
-    public Builder setNotificationHandler(NotificationHandler notificationHandler) {
-      this.notificationHandler = notificationHandler;
+    public Builder setNotificationEmitter(NotificationEmitter notificationEmitter) {
+      this.notificationEmitter = notificationEmitter;
       return this;
     }
 
@@ -266,7 +267,7 @@ public class HttpRequester {
       HttpRequestFactory eventToHttpRequest =
           new HttpRequestFactory(config, uri, method, requestStreamingMode, sendBodyMode, transformationService);
       return new HttpRequester(eventToHttpRequest, followRedirects, authentication, responseTimeout,
-                               responseValidator, config, scheduler, notificationHandler);
+                               responseValidator, config, scheduler, notificationEmitter);
     }
   }
 }

@@ -36,7 +36,7 @@ import org.mule.runtime.extension.api.annotation.param.Optional;
 import org.mule.runtime.extension.api.annotation.param.ParameterGroup;
 import org.mule.runtime.extension.api.annotation.param.display.Placement;
 import org.mule.runtime.extension.api.annotation.param.display.Summary;
-import org.mule.runtime.extension.api.notification.NotificationHandler;
+import org.mule.runtime.extension.api.notification.NotificationEmitter;
 import org.mule.runtime.extension.api.runtime.operation.Result;
 import org.mule.runtime.extension.api.runtime.process.CompletionCallback;
 import org.mule.runtime.http.api.HttpConstants;
@@ -79,7 +79,7 @@ public class HttpRequestOperations implements Initialisable, Disposable {
                       @Placement(order = 3) @ParameterGroup(name = REQUEST) HttpRequesterRequestBuilder requestBuilder,
                       @ParameterGroup(name = RESPONSE) ResponseValidationSettings responseValidationSettings,
                       @Connection HttpExtensionClient client,
-                      @Config HttpRequesterConfig config, NotificationHandler notificationHandler,
+                      @Config HttpRequesterConfig config, NotificationEmitter notificationEmitter,
                       CompletionCallback<InputStream, HttpResponseAttributes> callback) {
     try {
       HttpRequesterRequestBuilder resolvedBuilder = requestBuilder != null ? requestBuilder : new HttpRequesterRequestBuilder();
@@ -112,7 +112,7 @@ public class HttpRequestOperations implements Initialisable, Disposable {
               .setResponseValidator(responseValidator)
               .setTransformationService(muleContext.getTransformationService())
               .setScheduler(scheduler)
-              .setNotificationHandler(notificationHandler)
+              .setNotificationEmitter(notificationEmitter)
               .build();
 
       requester.doRequest(client, resolvedBuilder, true, muleContext, callback);

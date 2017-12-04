@@ -7,9 +7,10 @@
 package org.mule.extension.http.internal.temporary;
 
 import static org.mule.extension.http.internal.listener.HttpListener.HTTP_NAMESPACE;
-
 import org.mule.extension.http.api.error.HttpError;
 import org.mule.extension.http.api.listener.server.HttpListenerConfig;
+import org.mule.extension.http.api.notification.HttpRequestData;
+import org.mule.extension.http.api.notification.HttpResponseData;
 import org.mule.extension.http.api.policy.HttpPolicyRequestAttributes;
 import org.mule.extension.http.api.request.authentication.BasicAuthentication;
 import org.mule.extension.http.api.request.authentication.DigestAuthentication;
@@ -61,7 +62,8 @@ import org.mule.runtime.http.api.client.proxy.ProxyConfig;
 @Xml(namespace = "http://www.mulesoft.org/schema/mule/http", prefix = HTTP_NAMESPACE)
 // TODO move back to package org.mule.extension.http.internal as part of MULE-10651. Now we are using this package
 // because it doesn't work in the former package since the classloader mechanism will try to load the class from another bundle.
-@Export(classes = {HttpListenerConfig.class, HttpExtensionClient.class, HttpPolicyRequestAttributes.class})
+@Export(classes = {HttpListenerConfig.class, HttpExtensionClient.class, HttpPolicyRequestAttributes.class, HttpRequestData.class,
+    HttpResponseData.class})
 public class HttpConnector {
 
 }
