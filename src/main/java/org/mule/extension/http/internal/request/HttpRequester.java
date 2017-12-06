@@ -10,10 +10,11 @@ import static java.lang.Integer.getInteger;
 import static org.apache.commons.lang3.StringUtils.containsIgnoreCase;
 import static org.mule.extension.http.api.error.HttpError.CONNECTIVITY;
 import static org.mule.extension.http.api.error.HttpError.TIMEOUT;
-import static org.mule.extension.http.api.notification.HttpNotificationInfo.HttpNotificationAction.REQUEST_COMPLETE;
-import static org.mule.extension.http.api.notification.HttpNotificationInfo.HttpNotificationAction.REQUEST_START;
+import static org.mule.extension.http.api.notification.HttpNotificationAction.REQUEST_COMPLETE;
+import static org.mule.extension.http.api.notification.HttpNotificationAction.REQUEST_START;
 import static org.mule.extension.http.internal.HttpConnectorConstants.IDEMPOTENT_METHODS;
 import static org.mule.runtime.api.i18n.I18nMessageFactory.createStaticMessage;
+import static org.mule.runtime.api.metadata.TypedValue.of;
 import static org.mule.runtime.core.api.config.MuleProperties.SYSTEM_PROPERTY_PREFIX;
 import static org.mule.runtime.http.api.HttpConstants.Protocol.HTTPS;
 import static reactor.core.publisher.Mono.from;
@@ -21,7 +22,6 @@ import org.mule.extension.http.api.HttpResponseAttributes;
 import org.mule.extension.http.api.error.HttpError;
 import org.mule.extension.http.api.error.HttpErrorMessageGenerator;
 import org.mule.extension.http.api.error.HttpRequestFailedException;
-import org.mule.extension.http.api.notification.HttpNotificationInfo;
 import org.mule.extension.http.api.notification.HttpRequestData;
 import org.mule.extension.http.api.notification.HttpResponseData;
 import org.mule.extension.http.api.request.authentication.HttpRequestAuthentication;
@@ -100,12 +100,12 @@ public class HttpRequester {
                                   boolean checkRetry, MuleContext muleContext,
                                   CompletionCallback<InputStream, HttpResponseAttributes> callback, HttpRequest httpRequest,
                                   int retryCount) {
-    notificationEmitter.fire(new HttpNotificationInfo(HttpRequestData.from(httpRequest), REQUEST_START));
+    notificationEmitter.fire(REQUEST_START, of(HttpRequestData.from(httpRequest)));
     client.send(httpRequest, responseTimeout, followRedirects, resolveAuthentication(authentication))
         .whenComplete(
                       (response, exception) -> {
                         if (response != null) {
-                          notificationEmitter.fire(new HttpNotificationInfo(HttpResponseData.from(response), REQUEST_COMPLETE));
+                          notificationEmitter.fire(REQUEST_COMPLETE, of(HttpResponseData.from(response)));
                           HttpResponseToResult httpResponseToResult = new HttpResponseToResult(config, muleContext);
                           from(httpResponseToResult.convert(response, httpRequest.getUri()))
                               .doOnNext(result -> {
